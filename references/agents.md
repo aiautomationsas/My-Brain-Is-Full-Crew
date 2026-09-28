@@ -95,7 +95,7 @@ All agents read `Meta/user-profile.md` for personalization. This file is created
 
 **Role**: Email & Calendar Intelligence
 **Agent file**: `postman.md`
-**Requires**: One of: Google Workspace CLI (`gws`), Hey CLI (`hey`), or MCP connectors (read-only fallback). See `docs/gws-setup-guide.md` for GWS setup; see [Hey CLI](https://github.com/basecamp/hey-cli) for Hey setup.
+**Requires**: For Gmail/Calendar, nothing to install — defaults to the claude.ai account connector. Falls back to Google Workspace CLI (`gws`) if the connector is unavailable. For Hey.com, the Hey CLI (`hey`) is required. See `docs/gws-setup-guide.md` for GWS setup; see [Hey CLI](https://github.com/basecamp/hey-cli) for Hey setup.
 **Responsibilities**: Scans email (Gmail or Hey.com) for actionable emails, archives/deletes/labels emails, imports Google Calendar events, creates calendar events. Handles VIP filtering and contact enrichment. When using Hey, leverages pre-sorted mailboxes (Imbox, Feed, Paper Trail, Reply Later, Set Aside, Bubble Up).
 **Skills**: Email triage, meeting prep, weekly agenda, and deadline radar are handled by skills: `/email-triage`, `/meeting-prep`, `/weekly-agenda`, `/deadline-radar`.
 **Contact when**: Important information may have arrived by email. Meeting notes should be cross-referenced with calendar events. An event needs to be created from a note.

@@ -283,9 +283,9 @@ If the user says **no** or wants to skip, acknowledge and move on.
 ### Phase 3: Integrations
 
 9. **Email** — "Do you use Gmail or Hey.com (or both)? The Postman agent can scan your inbox for actionable emails and save relevant information to your vault."
-   - If Gmail: ask about GWS CLI vs MCP setup (see Phase 4, Section C)
+   - If Gmail: default is the claude.ai account connector — no setup needed. Mention the `gws` CLI fallback exists for when the connector isn't available (see Phase 4, Section C).
    - If Hey.com: ask if they have the Hey CLI installed (`hey --version`). If not, point to https://github.com/basecamp/hey-cli
-   - If both: set `email_backend` preference in user profile (default: `gws`)
+   - If both: set `email_backend` preference in user profile (default: `gws`, only consulted when the account connector is unavailable)
 10. **Google Calendar** — "Do you use Google Calendar? The Postman can import events, create meeting notes, and keep your vault synced with your schedule."
 
 ---
@@ -360,30 +360,11 @@ If they don't exist, create them from scratch using Write:
 
 If the user opted into email or Google Calendar during Phase 3, explain the options:
 
-1. **Google Workspace CLI (`gws`)** — recommended for Gmail users, full read/write access (search, archive, delete, label, send emails; create/update/delete events). Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` for setup instructions.
+1. **Account Connector (default, Gmail/Calendar users)** — the claude.ai account-level Gmail and Google Calendar connectors. Nothing to install, no `.mcp.json` entry needed — Postman uses these automatically whenever they're present in the session. Full read/write (search, archive, delete, label, send, drafts; create/update/delete events). Point the user to their agent platform's connector settings if these aren't already enabled on their account.
 
-2. **Hey CLI (`hey`)** — for Hey.com users, full read/write access to Hey mailboxes. Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` (Option A) or https://github.com/basecamp/hey-cli. Calendar operations still use `gws`.
+2. **Google Workspace CLI (`gws`, fallback)** — only needed if the account connector isn't available. Full read/write access (search, archive, delete, label, send emails; create/update/delete events). Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` for setup instructions.
 
-3. **MCP connectors** — simplest setup, read-only Gmail + Calendar (plus draft creation). Create `.mcp.json` at the vault root:
-
-```bash
-cat > .mcp.json << 'EOF'
-{
-  "mcpServers": {
-    "Gmail": {
-      "type": "http",
-      "url": "https://gmail.mcp.claude.com/mcp"
-    },
-    "Google Calendar": {
-      "type": "http",
-      "url": "https://gcal.mcp.claude.com/mcp"
-    }
-  }
-}
-EOF
-```
-
-If only Gmail was selected, omit the Google Calendar entry and vice versa.
+3. **Hey CLI (`hey`)** — for Hey.com users (the account connector does not cover Hey.com), full read/write access to Hey mailboxes. Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` (Option A) or https://github.com/basecamp/hey-cli. Calendar operations still use the Account Connector or `gws`.
 
 **D. Inform the user about the scoping**
 
@@ -1068,26 +1049,9 @@ Add area-specific tags (e.g., `#area/finance`, `#budget`, `#investment`).
 
 If the user opted into Gmail or Google Calendar during Phase 3, explain the two options:
 
-1. **Google Workspace CLI (`gws`)** — recommended, full read/write access. Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md`.
+1. **Account Connector (default)** — the claude.ai account-level Gmail/Calendar connectors. Nothing to set up, no `.mcp.json` entry — Postman uses these automatically when present in the session. Full read/write.
 
-2. **MCP connectors** — simpler setup, read-only fallback. Create `.mcp.json` at the vault root:
-
-```json
-{
-  "mcpServers": {
-    "Gmail": {
-      "type": "http",
-      "url": "https://gmail.mcp.claude.com/mcp"
-    },
-    "Google Calendar": {
-      "type": "http",
-      "url": "https://gcal.mcp.claude.com/mcp"
-    }
-  }
-}
-```
-
-If only Gmail was selected, omit the Google Calendar entry and vice versa.
+2. **Google Workspace CLI (`gws`, fallback)** — only needed if the account connector isn't available. Full read/write access. Point the user to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md`.
 
 ---
 

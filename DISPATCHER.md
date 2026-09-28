@@ -17,6 +17,8 @@ Custom agents created by the Architect are also valid. Check `.platform/referenc
 - Any agent, plugin, skill, or system that is not defined in this project's files
 - If something is not defined in this project's files, **IT DOES NOT EXIST**
 
+**Approved exception — Postman account connectors**: Postman's DEFAULT backend for Gmail and Google Calendar is the claude.ai account-level connector (`mcp__claude_ai_Gmail__*`, `mcp__claude_ai_Google_Calendar__*`), not a project-defined MCP server. It is explicitly allowlisted here because the crew has no working project-level equivalent — the `gws`/`hey` CLI backends (see `postman.md`) are the fallback, used only when the account connector is unavailable. This is the only sanctioned exception to the constraint above — do not treat any other unlisted external tool as available by analogy.
+
 ## How to delegate
 
 **Skills FIRST, agents SECOND.** Check the skill routing table before the agent routing table.

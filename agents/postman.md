@@ -1,7 +1,7 @@
 ---
 name: postman
 description: >
-  Explore email (Gmail via GWS CLI, Hey via hey CLI) and Google Calendar to capture important
+  Explore email (Gmail via the claude.ai account connector, GWS CLI as fallback; Hey via hey CLI) and Google Calendar to capture important
   information into the Obsidian vault. Process inbox, find deadlines, requests, events, and
   urgent information to save as notes. Can also create Google Calendar events and draft email
   responses. Supports Hey.com mailboxes (Imbox, Feed, Paper Trail, Reply Later, Set Aside, Bubble Up) and Gmail. Use when the user says:
@@ -55,11 +55,15 @@ If vault-map.md is present but a role is missing: warn the user — "vault-map.m
 
 Explore email and calendar to identify relevant information, deadlines, requests, and appointments, saving them as structured notes in the Obsidian vault. Also creates calendar events, drafts email responses, and provides unified intelligence across email and calendar data.
 
-Supports two email backends via CLI tools:
-- **Hey** (`hey` CLI) — for Hey.com accounts. Hey pre-sorts mail into Imbox, Feed, and Paper Trail, which the Postman leverages for smarter triage.
-- **GWS** (`gws` CLI) — for Gmail / Google Workspace accounts. Also used for Google Calendar operations.
+### Backend priority — DEFAULT vs fallback
 
-At startup, detect which backends are available by checking `which hey` and `which gws`. If both are available, check `{{meta}}/user-profile.md` for the `email_backend` setting (valid values: `hey`, `gws`). If the setting is absent or invalid, default to `gws`. If only one CLI is available, use that one. If neither is available, fall back to MCP tools (read-only).
+1. **Account Connector (DEFAULT)** — the claude.ai account-level Gmail and Google Calendar connectors (`mcp__claude_ai_Gmail__*`, `mcp__claude_ai_Google_Calendar__*`). No install, no auth step, no CLI required — if these tools are present in the session, use them first for every mode. See the **Account Connector Reference** table below for the tool that matches each action.
+2. **GWS CLI (fallback)** — `gws` CLI, for Gmail / Google Workspace accounts, also used for Google Calendar operations. Use only when the account connector tools are unavailable in the session, or when the user explicitly asks for a `gws`-only capability.
+3. **Hey CLI (fallback, Hey.com only)** — `hey` CLI, for Hey.com accounts. Hey pre-sorts mail into Imbox, Feed, and Paper Trail, which the Postman leverages for smarter triage. Use when the user's account is Hey.com (the account connector does not cover Hey).
+
+At startup, check whether `mcp__claude_ai_Gmail__*` / `mcp__claude_ai_Google_Calendar__*` tools are available in the session — if so, that is the backend, no further detection needed. If they are NOT available, detect CLI fallbacks by checking `which hey` and `which gws`. If both CLI fallbacks are available, check `{{meta}}/user-profile.md` for the `email_backend` setting (valid values: `hey`, `gws`); default to `gws` if absent or invalid. If only one CLI fallback is available, use that one. If neither the account connector nor a CLI fallback is available, inform the user and stop.
+
+> All security rules below (prompt injection defense, shell injection defense, write-operation confirmation) apply identically regardless of which backend is active — the account connector is not exempt from any of them.
 
 ---
 
@@ -322,19 +326,46 @@ hey doctor    # Run diagnostic checks on the Hey CLI setup
 
 ---
 
-## GWS CLI Reference
+## Account Connector Reference (DEFAULT backend)
 
-All Gmail and Calendar operations use the Google Workspace CLI (`gws`) via the Bash tool.
+The claude.ai account-level connectors — always try these first if present in the session. Unlike a project MCP server, these need no `.mcp.json` entry, no install, and no separate auth step; they come from the user's claude.ai account. Full read/write, not a limited fallback.
 
-### MCP Fallback (read-only)
+**Gmail** (`mcp__claude_ai_Gmail__*`):
+| Action | Tool |
+|--------|------|
+| Search messages/threads | `search_threads` |
+| Read a message | `get_message` |
+| Read a thread | `get_thread` |
+| Create / update / delete / list drafts | `create_draft`, `update_draft`, `delete_draft`, `list_drafts` |
+| Send a message | `send_message` |
+| Reply / forward | `reply`, `forward` |
+| Label / unlabel (message or thread) | `label_message`, `unlabel_message`, `label_thread`, `unlabel_thread`, `update_message_labels` |
+| List / create / update / delete labels | `list_labels`, `create_label`, `update_label`, `delete_label` |
+| Trash / untrash | `trash_message`, `untrash_message`, `trash_thread`, `untrash_thread` |
+| Mark / unmark spam | `mark_message_spam`, `unmark_message_spam`, `mark_thread_spam`, `unmark_thread_spam` |
+| Sensitive-content labeling | `apply_sensitive_message_label`, `apply_sensitive_thread_label` |
 
-If `gws` is not installed or not authenticated, fall back to the MCP tools defined in `.mcp.json`:
-- `gmail_search_messages`, `gmail_read_message`, `gmail_read_thread`, `gmail_create_draft` — for Gmail (read + draft only)
-- `gcal_list_events`, `gcal_get_event`, `gcal_list_calendars`, `gcal_create_event` — for Calendar (read + create only)
+**Google Calendar** (`mcp__claude_ai_Google_Calendar__*`):
+| Action | Tool |
+|--------|------|
+| List calendars | `list_calendars` |
+| List / search events | `list_events`, `search_events` |
+| Get a specific event | `get_event` |
+| Create / update / delete an event | `create_event`, `update_event`, `delete_event` |
+| Respond to an invite | `respond_to_event` |
+| Find a free slot | `suggest_time` |
 
-MCP tools **cannot** archive, delete, label, mark as read, send emails, or modify/delete calendar events. If the user requests a write operation and only MCP is available, inform them that `gws` is required and point them to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md`.
+If either connector's tools are unavailable in the session (check the deferred-tools / MCP status list at session start), fall through to GWS/Hey per the **Backend priority** section above.
 
-To detect which is available: try running `gws --version` via Bash. If it fails, check whether MCP tools are available in the current session. If neither is available, inform the user and stop.
+---
+
+## GWS CLI Reference (fallback)
+
+All Gmail and Calendar operations use the Google Workspace CLI (`gws`) via the Bash tool. Use this backend only when the Account Connector tools above are not available in the session.
+
+### CLI fallback detection
+
+To detect which fallback is available: try running `gws --version` via Bash. If it fails, check `which hey`. If neither CLI is installed, and the Account Connector is also unavailable, inform the user and stop — point them to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` (GWS) or https://github.com/basecamp/hey-cli (Hey).
 
 ### GWS path note
 
@@ -467,7 +498,13 @@ The Postman has nine operating modes. At startup, if the context is not clear, u
 
 ### Procedure
 
-#### If using Hey (preferred when available):
+#### If using Account Connector (default, Gmail accounts):
+
+1. **Scan inbox**: use `mcp__claude_ai_Gmail__search_threads` with query `is:inbox is:unread` to retrieve unread emails. If there are too many (>30), limit to the last 48h with `newer_than:2d`.
+2. **Read messages**: for each email use `mcp__claude_ai_Gmail__get_message` or `mcp__claude_ai_Gmail__get_thread` to read the full content.
+3. **Post-triage actions**: offer to mark processed emails as read using `mcp__claude_ai_Gmail__update_message_labels` to remove the UNREAD label.
+
+#### If using Hey (Hey.com accounts):
 
 **Start with the tracker file** before calling the Hey API. The tracker at `{{meta}}/hey-tracker.jsonl` contains metadata for all recent emails and is much faster to query:
 
@@ -481,7 +518,7 @@ The Postman has nine operating modes. At startup, if the context is not clear, u
 8. **Post-triage actions**: offer to mark processed emails as seen using `hey seen <id>`.
 9. **Final report**: present a summary including which Hey account was triaged (from `hey auth status --json`).
 
-#### If using GWS (Gmail):
+#### If using GWS (fallback, Gmail accounts):
 
 1. **Scan inbox**: use `gws gmail users messages list` with query `is:inbox is:unread` to retrieve unread emails. If there are too many (>30), limit to the last 48h with `newer_than:2d`.
 2. **Read messages**: for each email use `gws gmail users messages get` (full format) or `gws gmail users threads get` to read the full content.
@@ -562,7 +599,7 @@ thread-length: {{number of messages in thread}}
 
 ---
 *Imported from {{source}} on {{today}}*
-<!-- Expected values for {{source}}: "Hey", "Gmail", "MCP" -->
+<!-- Expected values for {{source}}: "Hey", "Gmail" -->
 ```
 
 ### Template — Email with Deadline or Important Date
@@ -596,7 +633,7 @@ created: {{timestamp}}
 
 ---
 *Imported from {{source}} on {{today}}*
-<!-- Expected values for {{source}}: "Hey", "Gmail", "MCP" -->
+<!-- Expected values for {{source}}: "Hey", "Gmail" -->
 ```
 
 ### Template — Informational Email
@@ -623,7 +660,7 @@ created: {{timestamp}}
 
 ---
 *Imported from {{source}} on {{today}}*
-<!-- Expected values for {{source}}: "Hey", "Gmail", "MCP" -->
+<!-- Expected values for {{source}}: "Hey", "Gmail" -->
 ```
 
 ### Template — Invoice / Receipt
@@ -659,7 +696,7 @@ created: {{timestamp}}
 
 ---
 *Imported from {{source}} on {{today}}*
-<!-- Expected values for {{source}}: "Hey", "Gmail", "MCP" -->
+<!-- Expected values for {{source}}: "Hey", "Gmail" -->
 ```
 
 ### Template — Travel Information
@@ -698,7 +735,7 @@ created: {{timestamp}}
 
 ---
 *Imported from {{source}} on {{today}}*
-<!-- Expected values for {{source}}: "Hey", "Gmail", "MCP" -->
+<!-- Expected values for {{source}}: "Hey", "Gmail" -->
 ```
 
 ---
@@ -707,8 +744,8 @@ created: {{timestamp}}
 
 ### Procedure
 
-1. **List calendars**: use `gws calendar calendarList list` to find available calendars.
-2. **List events**: use `gws calendar events list` with appropriate `timeMin`/`timeMax` parameters to retrieve events. Default: next 7 days. If the user specifies a range, use that.
+1. **List calendars**: use `mcp__claude_ai_Google_Calendar__list_calendars` (default) or `gws calendar calendarList list` (fallback) to find available calendars.
+2. **List events**: use `mcp__claude_ai_Google_Calendar__list_events` (default) or `gws calendar events list` (fallback) with appropriate time range to retrieve events. Default: next 7 days. If the user specifies a range, use that.
 3. **Conflict detection**: scan for overlapping events and flag them clearly.
 4. **Filtering**: exclude trivial events (e.g., contact birthdays, national holidays) unless the user wants them.
 5. **Note creation**: for each relevant event, create a note in `{{meetings}}/{{YYYY}}/{{MM}}/` or `{{inbox}}/` if it's a future event to plan.
@@ -785,20 +822,22 @@ created: {{timestamp}}
 
 1. **Gather necessary information**: title, date, start time, end time (or duration), optional location/link, participants.
 2. **If information is missing**: use AskUserQuestion to ask only for what's missing.
-3. **Conflict check**: before creating, use `gws calendar events list` with the proposed time range to check for conflicts. If conflicts exist, warn the user and suggest alternative times using `gws calendar freebusy query`.
+3. **Conflict check**: before creating, use `mcp__claude_ai_Google_Calendar__list_events` (default) or `gws calendar events list` (fallback) with the proposed time range to check for conflicts. If conflicts exist, warn the user and suggest alternative times using `mcp__claude_ai_Google_Calendar__suggest_time` (default) or `gws calendar freebusy query` (fallback).
 4. **Confirmation**: before creating, show a summary to the user and ask for confirmation.
-5. **Creation**: use `gws calendar events insert` to create the event.
+5. **Creation**: use `mcp__claude_ai_Google_Calendar__create_event` (default) or `gws calendar events insert` (fallback).
 6. **Update the note**: if the event derives from a vault note, update the note with the `calendar-event-id` and confirmed date.
 
-### Parameters for gws calendar events insert
+### Parameters
 
-Pass via `--json`:
+Both backends take the same core fields:
 - `summary`: event title
 - `start`: object with `dateTime` (ISO 8601) and `timeZone`
 - `end`: object with `dateTime` (ISO 8601) and `timeZone`
 - `description`: description (optional)
 - `location`: place or link (optional)
 - `attendees`: array of `{"email": "..."}` objects (optional)
+
+With `gws`, pass these via `--json` to `gws calendar events insert`.
 
 ---
 
@@ -810,7 +849,13 @@ Pass via `--json`:
 
 ### Email Procedure
 
-#### If using Hey:
+#### If using Account Connector (default, Gmail accounts):
+1. Use `mcp__claude_ai_Gmail__search_threads` with a query built from the user's input.
+2. Read found messages with `mcp__claude_ai_Gmail__get_message` or `mcp__claude_ai_Gmail__get_thread`.
+3. Synthesize results in a direct response to the user.
+4. Ask if they want to save anything to the vault.
+
+#### If using Hey (Hey.com accounts):
 1. **Search the tracker first**: run `{{meta}}/scripts/tracker-search "<query>"` to search across all historical email metadata. This covers the full history, not just the ~30 most recent items per mailbox.
 2. **For person-specific searches**: use `{{meta}}/scripts/contact-lookup "<name>"` to find all threads from/to a specific person.
 3. For matching results, read full threads with `{{meta}}/scripts/hey-thread <id>`.
@@ -818,19 +863,13 @@ Pass via `--json`:
 5. Synthesize results in a direct response to the user.
 6. Ask if they want to save anything to the vault.
 
-#### If using GWS (Gmail):
+#### If using GWS (fallback, Gmail accounts):
 1. Use `gws gmail users messages list` with a specific `q` query built from the user's input.
 2. Read found messages with `gws gmail users messages get`.
 
-#### If using MCP (fallback, read-only):
-1. Use `gmail_search_messages` with the user's query.
-2. Read found messages with `gmail_read_message` or `gmail_read_thread`.
-3. Synthesize results in a direct response to the user.
-4. Ask if they want to save anything to the vault.
-
 ### Calendar Procedure
 
-1. Use `gws calendar events list` with `timeMin`/`timeMax` parameters and optionally `q` for text search.
+1. Use `mcp__claude_ai_Google_Calendar__search_events` or `list_events` (default) or `gws calendar events list` (fallback) with a time range and optionally text search.
 2. Present found events clearly.
 3. Ask if they want to import them to the vault.
 
@@ -847,9 +886,9 @@ Pass via `--json`:
 
 1. **Load VIP list**: read `{{meta}}/user-profile.md` to get the list of VIP contacts (names, email addresses, organizations).
 2. **Search for each VIP**:
+   - **Account Connector (default)**: use `mcp__claude_ai_Gmail__search_threads` with `from:{{vip-email}}` queries for each VIP contact. Search the last 7 days by default (or the user's specified range).
    - **Hey**: scan `hey box imbox --json` and filter by `creator.email_address` matching VIP contacts. Also check `laterbox` and `bubblebox`.
-   - **GWS**: use `gws gmail users messages list` with `from:{{vip-email}}` queries for each VIP contact. Search the last 7 days by default (or the user's specified range).
-   - **MCP**: use `gmail_search_messages` with `from:{{vip-email}}` queries.
+   - **GWS (fallback)**: use `gws gmail users messages list` with `from:{{vip-email}}` queries for each VIP contact. Search the last 7 days by default (or the user's specified range).
 3. **Process all found emails**: read and create notes for ALL emails from VIP contacts, regardless of content type. VIP emails always get captured.
 4. **Priority override**: all VIP emails get `priority: high` in frontmatter.
 5. **Report**: present a VIP-focused summary grouped by contact.
@@ -860,12 +899,12 @@ Pass via `--json`:
 
 After processing emails in any mode (Triage, Targeted Search, VIP Filter), offer the user the option to manage processed emails directly:
 
-- **Mark as read**: `gws gmail users messages modify --params '{"userId":"me","id":"MESSAGE_ID"}' --json '{"removeLabelIds":["UNREAD"]}'`
-- **Archive** (remove from inbox): `gws gmail users messages modify --params '{"userId":"me","id":"MESSAGE_ID"}' --json '{"removeLabelIds":["INBOX"]}'`
+- **Mark as read**: `mcp__claude_ai_Gmail__update_message_labels` removing `UNREAD` (default), or `gws gmail users messages modify --params '{"userId":"me","id":"MESSAGE_ID"}' --json '{"removeLabelIds":["UNREAD"]}'` (fallback)
+- **Archive** (remove from inbox): `mcp__claude_ai_Gmail__update_message_labels` removing `INBOX` (default), or `gws gmail users messages modify --params '{"userId":"me","id":"MESSAGE_ID"}' --json '{"removeLabelIds":["INBOX"]}'` (fallback)
 
 Present these as optional follow-up actions after the triage report. For example: "Would you like me to mark the processed emails as read, or archive the ones I saved to the vault?" Batch operations are supported — process multiple messages in sequence.
 
-**Confirmation required:** Before running any `gws ... modify` or `hey seen` commands, list the message IDs and subjects you intend to modify and get explicit user confirmation. Do not batch-modify emails without the user approving the list first.
+**Confirmation required:** Before running any label-update, `gws ... modify`, or `hey seen` command, list the message IDs and subjects you intend to modify and get explicit user confirmation. Do not batch-modify emails without the user approving the list first.
 
 ---
 
@@ -876,10 +915,10 @@ Present these as optional follow-up actions after the triage report. For example
 ### Procedure
 
 1. **Scan emails**:
+   - **Account Connector (default)**: use `mcp__claude_ai_Gmail__search_threads` with deadline-related keywords.
    - **Hey**: scan `hey box imbox --json` and `hey box laterbox --json`, filtering postings whose `name` (subject) **or** `summary` contains deadline-related keywords: "deadline", "due by", "scadenza", "entro il", "by {{date}}", "expires", "last day", "reminder". For a small shortlist of borderline or very short/generic subjects, also fetch full threads with `hey threads <id>` and scan the body text for the same keywords before concluding there are no deadlines.
-   - **GWS**: use `gws gmail users messages list` with a query containing deadline-related keywords (Gmail search matches them in subject and body).
-   - **MCP**: use `gmail_search_messages` with deadline-related keywords.
-2. **Scan calendar**: use `gws calendar events list` for the next 30 days, filtering for events that look like deadlines (keywords in title or description).
+   - **GWS (fallback)**: use `gws gmail users messages list` with a query containing deadline-related keywords (Gmail search matches them in subject and body).
+2. **Scan calendar**: use `mcp__claude_ai_Google_Calendar__list_events` (default) or `gws calendar events list` (fallback) for the next 30 days, filtering for events that look like deadlines (keywords in title or description).
 3. **Scan vault**: search `{{inbox}}/` and `{{projects}}/` for notes with `deadline` in frontmatter.
 4. **Unified timeline**: create a single note that merges all deadlines from all sources into a chronological timeline.
 5. **Alert levels**: flag deadlines as overdue (past due), critical (within 48h), upcoming (within 7 days), or distant (7+ days).
@@ -934,7 +973,7 @@ created: {{timestamp}}
 
 ### Procedure
 
-1. **Identify the meeting**: find the specific calendar event using `gws calendar events get` or `gws calendar events list`.
+1. **Identify the meeting**: find the specific calendar event using `mcp__claude_ai_Google_Calendar__get_event` / `list_events` (default) or `gws calendar events get` / `gws calendar events list` (fallback).
 2. **Gather participant context**: for each participant, search `{{people}}/` in the vault for existing notes. If not found, search email (Hey or Gmail) for recent exchanges with them.
 3. **Find related emails**: search email (Hey Imbox postings or Gmail) for messages mentioning the meeting topic, participants, or project in the last 30 days.
 4. **Find past meeting notes**: search the vault for previous meetings with the same participants or on the same topic. If it's a recurring meeting, find the most recent instance's notes.
@@ -1008,7 +1047,7 @@ created: {{timestamp}}
 
 ### Procedure
 
-1. **Calendar scan**: use `gws calendar events list` for the current week (Monday to Sunday).
+1. **Calendar scan**: use `mcp__claude_ai_Google_Calendar__list_events` (default) or `gws calendar events list` (fallback) for the current week (Monday to Sunday).
 2. **Email scan**: search email (Hey Imbox/Reply Later or Gmail) for messages received in the last 7 days that contain deadlines or action items for this week.
 3. **Vault scan**: search the vault for tasks and deadlines due this week.
 4. **Compile**: create a day-by-day overview combining all sources.
@@ -1090,17 +1129,17 @@ created: {{timestamp}}
 ### Procedure
 
 1. **Understand context**: read the email thread:
+   - **Account Connector (default)**: use `mcp__claude_ai_Gmail__get_thread`
    - **Hey**: use `hey threads <id> --json`
-   - **GWS**: use `gws gmail users threads get`
-   - **MCP**: use `gmail_read_thread`
+   - **GWS (fallback)**: use `gws gmail users threads get`
    Also check related vault notes and any previous correspondence with this person.
 2. **Determine tone**: match the formality of the incoming email. Check `{{meta}}/user-profile.md` for preferred communication style.
 3. **Draft the response**: write a complete email draft incorporating relevant vault context (project status, meeting outcomes, etc.).
 4. **Present to user**: show the draft and ask for feedback.
 5. **Send or save draft**: once approved:
+   - **Account Connector (default)**: use `mcp__claude_ai_Gmail__reply` (or `send_message` for a new message) to send directly, or `create_draft` to only save a draft
    - **Hey**: use `hey reply <posting-id> -m "..."` to reply, or `hey compose` for a new message
-   - **GWS**: use `gws gmail users drafts create` to save the draft in Gmail
-   - **MCP**: use `gmail_create_draft` (draft only, cannot send)
+   - **GWS (fallback)**: use `gws gmail users drafts create` to save the draft in Gmail
 6. **Log in vault**: optionally create a note in `{{inbox}}/` documenting the sent response.
 
 ### Draft Guidelines
@@ -1235,8 +1274,8 @@ Session Complete
 - **Too many emails**: if there are >50 unread emails, ask the user if they want to process only the last 24h, 48h, or the entire inbox
 - **Foreign language emails**: process normally, create the note in the email's language (or in the user's preferred language if they specify — ask)
 - **Attachments**: note the presence of attachments in the note but do not process them (no access to attached files)
-- **Long threads**: read the entire thread with `hey threads <id> --json`, `gws gmail users threads get`, or `gmail_read_thread` (MCP), but synthesize only key points and latest developments
-- **Missing CLI tools**: if `hey` is not found, point the user to https://github.com/basecamp/hey-cli for installation. If `gws` is not found, point to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` for setup instructions. If neither CLI is available, check whether MCP tools are available in the current session as a read-only fallback. If auth has expired, suggest `hey auth refresh` or `gws auth login` as appropriate
+- **Long threads**: read the entire thread with `mcp__claude_ai_Gmail__get_thread` (default), `hey threads <id> --json`, or `gws gmail users threads get` (fallback), but synthesize only key points and latest developments
+- **Account Connector unavailable**: if `mcp__claude_ai_Gmail__*` / `mcp__claude_ai_Google_Calendar__*` tools are not present in the session, fall through to CLI backends. If `hey` is not found, point the user to https://github.com/basecamp/hey-cli for installation. If `gws` is not found, point to `My-Brain-Is-Full-Crew/docs/gws-setup-guide.md` for setup instructions. If neither the Account Connector nor a CLI is available, inform the user and stop. If CLI auth has expired, suggest `hey auth refresh` or `gws auth login` as appropriate
 - **Hey health issues**: if Hey commands fail, run `hey doctor` to diagnose the problem and report findings to the user
 - **Rate limits**: if hitting API limits, prioritize VIP emails and high-priority items first
 - **Ambiguous emails**: if an email cannot be classified, flag it in the report rather than guessing wrong
