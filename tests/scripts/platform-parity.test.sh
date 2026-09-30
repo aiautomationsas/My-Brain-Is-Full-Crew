@@ -18,11 +18,15 @@ test_platform_build_matrix_produces_expected_dispatchers_and_roots() {
 
   # Platform → expected artifacts map
   # Format: "<dispatcher>|<agent_file>|<config_file>"
-  declare -A EXPECTED
-  EXPECTED["claude-code"]="dist/claude-code/CLAUDE.md|dist/claude-code/.claude/agents/architect.md|dist/claude-code/.mcp.json"
-  EXPECTED["gemini-cli"]="dist/gemini-cli/GEMINI.md|dist/gemini-cli/.gemini/agents/architect.md|dist/gemini-cli/.gemini/settings.json"
-  EXPECTED["opencode"]="dist/opencode/AGENTS.md|dist/opencode/.opencode/agents/architect.md|dist/opencode/opencode.json"
-  EXPECTED["codex-cli"]="dist/codex-cli/AGENTS.md|dist/codex-cli/.codex/agents/architect.toml|dist/codex-cli/.codex/config.toml"
+  # (plain case statement, not `declare -A`, to stay compatible with bash 3.2 / stock macOS)
+  expected_for_platform() {
+    case "$1" in
+      claude-code) echo "dist/claude-code/CLAUDE.md|dist/claude-code/.claude/agents/architect.md|dist/claude-code/.mcp.json" ;;
+      gemini-cli)  echo "dist/gemini-cli/GEMINI.md|dist/gemini-cli/.gemini/agents/architect.md|dist/gemini-cli/.gemini/settings.json" ;;
+      opencode)    echo "dist/opencode/AGENTS.md|dist/opencode/.opencode/agents/architect.md|dist/opencode/opencode.json" ;;
+      codex-cli)   echo "dist/codex-cli/AGENTS.md|dist/codex-cli/.codex/agents/architect.toml|dist/codex-cli/.codex/config.toml" ;;
+    esac
+  }
 
   for platform in claude-code gemini-cli opencode codex-cli; do
     if ! bash "$ROOT/scripts/build.sh" --platform "$platform" >/dev/null 2>&1; then
@@ -31,7 +35,7 @@ test_platform_build_matrix_produces_expected_dispatchers_and_roots() {
       continue
     fi
 
-    IFS='|' read -r dispatcher agent_file config_file <<< "${EXPECTED[$platform]}"
+    IFS='|' read -r dispatcher agent_file config_file <<< "$(expected_for_platform "$platform")"
 
     [[ -f "$ROOT/$dispatcher" ]] \
       || { echo "FAIL [$platform]: dispatcher missing: $dispatcher"; result=1; }

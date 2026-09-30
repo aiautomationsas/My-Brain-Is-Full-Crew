@@ -27,22 +27,12 @@ SNAP_LIST="$(mktemp)"
 DIST_LIST="$(mktemp)"
 trap 'rm -f "$SNAP_LIST" "$DIST_LIST"' EXIT
 
-# Build a grep exclusion pattern
-GREP_EXCLUDE=""
-for p in "${EXCLUDE_PATTERNS[@]}"; do
-  escaped="${p//./\\.}"   # escape dots for grep
-  escaped="${escaped//\//\\\/}"  # escape slashes
-  if [[ -z "$GREP_EXCLUDE" ]]; then
-    GREP_EXCLUDE="^${escaped}$"
-  else
-    GREP_EXCLUDE="${GREP_EXCLUDE}|^${escaped}$"
-  fi
-done
-
-# Compare structure first (excluding known non-comparable files)
+# Compare structure first (excluding known non-comparable files).
+# Use fixed-string exact-line matching (-F -x) instead of hand-built regex:
+# no escaping needed, so there's no escaping to get wrong.
 echo "── File list comparison ──"
-(cd "$SNAPSHOT_DIR" && find . -type f | sort | grep -vE "$GREP_EXCLUDE") > "$SNAP_LIST"
-(cd "$DIST_DIR" && find . -type f | sort | grep -vE "$GREP_EXCLUDE") > "$DIST_LIST"
+(cd "$SNAPSHOT_DIR" && find . -type f | sort | grep -F -x -v -f <(printf '%s\n' "${EXCLUDE_PATTERNS[@]}")) > "$SNAP_LIST"
+(cd "$DIST_DIR" && find . -type f | sort | grep -F -x -v -f <(printf '%s\n' "${EXCLUDE_PATTERNS[@]}")) > "$DIST_LIST"
 if ! diff -u "$SNAP_LIST" "$DIST_LIST"; then
   echo "FAIL: file lists differ"
   exit 1

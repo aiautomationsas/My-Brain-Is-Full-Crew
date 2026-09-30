@@ -220,7 +220,8 @@ test_cc_translate_skills_real_corpus_has_exact_skill_directories() {
     weekly-agenda
   )
 
-  mapfile -t actual < <(find "$dst/.agents/skills" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+  local actual=()
+  while IFS= read -r line; do actual+=("$line"); done < <(find "$dst/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
   [[ "${#actual[@]}" -eq 14 ]] \
     || { echo "expected 14 generated skill directories, found ${#actual[@]}: ${actual[*]}"; result=1; }
 
@@ -1072,7 +1073,8 @@ test_cc_adapter_build_real_agent_corpus_has_exact_toml_files() {
     transcriber.toml
   )
 
-  mapfile -t actual < <(find "$dst/.codex/agents" -maxdepth 1 -name '*.toml' -printf '%f\n' | sort)
+  local actual=()
+  while IFS= read -r line; do actual+=("$line"); done < <(find "$dst/.codex/agents" -maxdepth 1 -name '*.toml' -exec basename {} \; | sort)
   [[ "${#actual[@]}" -eq 8 ]] \
     || { echo "expected 8 generated agent TOML files, found ${#actual[@]}: ${actual[*]}"; result=1; }
 
