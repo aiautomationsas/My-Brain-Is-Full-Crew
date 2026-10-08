@@ -1,6 +1,0 @@
-servers:
-  - name: Higgsfield
-    type: http
-    url: "https://mcp.higgsfield.ai/mcp"
-    env: {}
-    exclude: []
