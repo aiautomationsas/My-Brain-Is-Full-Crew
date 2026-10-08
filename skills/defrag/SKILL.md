@@ -106,6 +106,13 @@ When the user triggers a defrag, execute all 5 phases in order.
 2. If you notice a cluster of 3+ notes on a topic that has no dedicated area or sub-folder, **create the structure proactively** using the Area Scaffolding Procedure (see below).
 3. Update `{{meta}}/vault-structure.md` with all changes.
 
+### Phase: Crew drift
+
+1. If `Meta/scripts/crew-sync.sh` exists, run `bash Meta/scripts/crew-sync.sh diff` from the vault root.
+2. Exit 0 → report `Crew: 0 diferencias con la fuente`.
+3. Exit 1 → list each `DRIFT <path>` line in the report and recommend: commit, then `crew-sync.sh push` if the change was made here on purpose, or `crew-sync.sh pull` if the other vault has the newer version. Never run pull or push yourself.
+4. Exit 2 or 3 → report the script's message as-is.
+
 ### Phase 5: Report
 
 Create a defragmentation report at `{{meta}}/health-reports/YYYY-MM-DD — Defrag Report.md`:
