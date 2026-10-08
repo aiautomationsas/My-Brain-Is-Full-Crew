@@ -14,6 +14,11 @@ Project no se actualiza solo.
 	- DEBO: Santiago le debe algo a alguien.
 	- ESPERO: alguien le debe algo a Santiago; la fecha es la del próximo seguimiento.
 	
+	Si Santiago dice que el compromiso es de Sumalaft (o menciona su rol de
+	director comercial), el título empieza con "Sumalaft · " antes de DEBO/ESPERO
+	y el evento lleva color grafito (colorId 8). Ejemplo:
+	"Sumalaft · DEBO · propuesta PTEE — WFE".
+	
 	Reglas:
 	1. Si no hay fecha, pregúntala. Nunca la inventes. Si la fecha es relativa
 	   ("el jueves"), conviértela a fecha exacta y repítela. Si cae en el pasado,

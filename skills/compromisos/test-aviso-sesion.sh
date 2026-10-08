@@ -5,6 +5,8 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 S="$DIR/aviso-sesion.sh"
 T="$(mktemp -d)"
 fail=0
+# Aísla las pruebas de la config real del vault.
+export COMPROMISOS_CONFIG="$T/sin-config.md"
 
 check() { # nombre, archivo, esperado: aviso|vacio
   local out code
@@ -91,6 +93,31 @@ tiene "texto del aviso" "$T/d-man.md" "DEBO que vencen en ≤7 días: propuesta 
 tiene "sync vieja y DEBO: aviso de sync" "$T/d-sync-vieja.md" "corre /compromisos"
 tiene "sync vieja y DEBO: aviso de DEBO" "$T/d-sync-vieja.md" "ofrece desarrollarlos"
 tiene "fecha basura con DEBO avisa DEBO" "$T/d-basura.md" "ofrece desarrollarlos" "corre /compromisos"
+
+# --- Config y radar externo ---
+mkdir -p "$T/cfgv/Meta" "$T/cfgv/operacion"
+ledger "$hoy" "| $man | propuesta | WFE | cuentas | — | 0 | s1 |" "| $ayer | cotización | Bionica | cuentas | — | 0 | s2 |" > "$T/externo.md"
+ledger "$hoy" "| $en10 | lejano | X | cuentas | — | 0 | s3 |" > "$T/externo-lejano.md"
+ledger "$hoy" "| $man | ptee | WFE | cuentas | — | 0 | s4 |" > "$T/cfgv/operacion/compromisos.md"
+cfg() { # ledger, radar_externo
+  printf -- '---\nledger: %s\nradar_externo: %s\nradar_externo_nombre: Sumalaft\nradar_externo_vault: vault-sumalaft\n---\n' "$1" "$2"
+}
+cfg "_negocio/operacion/compromisos.md" "$T/externo.md" > "$T/cfg-radar.md"
+cfg "_negocio/operacion/compromisos.md" "$T/externo-lejano.md" > "$T/cfg-lejano.md"
+cfg "_negocio/operacion/compromisos.md" "$T/no-existe.md" > "$T/cfg-roto.md"
+cfg "operacion/compromisos.md" "" > "$T/cfgv/Meta/compromisos-config.md"
+radar() { # nombre, config, esperado ("" = silencio sobre Sumalaft)
+  local out; out="$(COMPROMISOS_CONFIG="$2" bash "$S" "$T/d-solo-espero.md")"
+  if [[ -z "$3" && "$out" == *"Sumalaft:"* ]]; then echo "FAIL $1: salió '$out'"; fail=1; return; fi
+  if [[ -n "$3" && "$out" != *"$3"* ]]; then echo "FAIL $1: esperaba '$3', salió '$out'"; fail=1; return; fi
+  echo "ok $1"
+}
+radar "radar externo cuenta y vencidos" "$T/cfg-radar.md" "Sumalaft: 2 DEBO ≤7 días (1 vencidos) — abre vault-sumalaft"
+radar "radar externo lejano calla" "$T/cfg-lejano.md" ""
+radar "radar externo inexistente calla" "$T/cfg-roto.md" ""
+radar "sin config calla" "$T/sin-config.md" ""
+out="$(cd / && CLAUDE_PROJECT_DIR="$T/cfgv" COMPROMISOS_CONFIG="$T/cfgv/Meta/compromisos-config.md" bash "$S")"
+if [[ "$out" == *"ptee (WFE, $man)"* ]]; then echo "ok ledger desde config"; else echo "FAIL ledger desde config: '$out'"; fail=1; fi
 
 rm -rf "$T"
 exit $fail
