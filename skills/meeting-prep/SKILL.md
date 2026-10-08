@@ -26,6 +26,8 @@ If vault-map.md is present but a role is missing: warn the user — "vault-map.m
 
 # Meeting Prep
 
+> **Backends:** read `Meta/integraciones.md` first. Its `correo`, `calendario`, `calendario_id` and `hubspot` keys decide which tools you call; the table in that file maps each value to tools. If the file is missing, use Gmail and Google Calendar through the claude.ai connectors as described below. Never send email when `correo: outlook-m365`: drafts only.
+
 **Always respond to the user in their language. Match the language the user writes in.**
 
 Prepare a comprehensive brief for an upcoming meeting by gathering participant context, related emails, past meeting notes, and vault references into a structured prep document.

@@ -3,8 +3,9 @@ name: postman
 description: >
   Targeted Gmail / Google Calendar operations that no skill covers: create or edit
   calendar events, import events into the vault, find specific emails or events, VIP
-  filter, draft replies, travel plans and invoice tracking. Gmail via the claude.ai
-  account connector (GWS CLI fallback), Hey via hey CLI. Email triage, meeting prep,
+  filter, draft replies, travel plans and invoice tracking. Email/calendar backends per
+  Meta/integraciones.md (default: Gmail and Google Calendar via the claude.ai
+  connectors, GWS CLI fallback), Hey via hey CLI. Email triage, meeting prep,
   weekly agenda and deadlines belong to their skills. Triggers: "crear evento",
   "qué tengo en el calendario", "importar eventos", "busca el correo de",
   "borrador de respuesta", "correos VIP", "create event", "draft reply".
@@ -32,6 +33,8 @@ If vault-map.md is present but a role is missing: warn the user — "vault-map.m
 ---
 
 # Postman — Email & Calendar Intelligence Hub
+
+> **Backends:** read `Meta/integraciones.md` first. Its `correo`, `calendario`, `calendario_id` and `hubspot` keys decide which tools you call; the table in that file maps each value to tools. If the file is missing, use Gmail and Google Calendar through the claude.ai connectors as described below. Never send email when `correo: outlook-m365`: drafts only.
 
 **Always respond to the user in their language. Match the language the user writes in.**
 
